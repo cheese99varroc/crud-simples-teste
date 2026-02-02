@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CRUD Simples (Vanilla JS)</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 720px; margin: 32px auto; padding: 0 16px; }
+    h1 { font-size: 22px; margin-bottom: 12px; }
+    .row { display: flex; gap: 8px; margin-bottom: 12px; }
+    input { flex: 1; padding: 10px; }
+    button { padding: 10px 12px; cursor: pointer; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid #ddd; margin-bottom: 8px; border-radius: 8px; }
+    small { color: #666; }
+    .actions { display: flex; gap: 8px; }
+  </style>
+</head>
+<body>
+  <h1>CRUD: Lista de Itens</h1>
+  <small>Create / Read / Update / Delete </small>
+
+  <div class="row">
+    <input id="nameInput" placeholder="Nome do item (ex: 'Estudar JS')" />
+    <button id="saveBtn">Salvar</button>
+    <button id="cancelBtn" style="display:none;">Cancelar</button>
+  </div>
+
+  <ul id="list"></ul>
+
+  <script>
+    // LOCAL STORAGE
+    const STORAGE_KEY = "crud_items_v1";
+
+    function loadItems() {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    }
+
+    function saveItems(items) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    }
+
+    // ATUALIZAR
+    let editingId = null;
+
+    // UI REF
+    const listEl = document.getElementById("list");
+    const nameInput = document.getElementById("nameInput");
+    const saveBtn = document.getElementById("saveBtn");
+    const cancelBtn = document.getElementById("cancelBtn");
+
+    // RENDERIZAR LISTA 
+    function render() {
+      const items = loadItems();
+      listEl.innerHTML = "";
+
+      items.forEach(item => {
+        const li = document.createElement("li");
+
+        const left = document.createElement("div");
+        left.innerHTML = `<strong>${escapeHtml(item.name)}</strong><br><small>ID: ${item.id}</small>`;
+
+        const actions = document.createElement("div");
+        actions.className = "actions";
+
+        const editBtn = document.createElement("button");
+        editBtn.textContent = "Editar";
+        editBtn.onclick = () => startEdit(item.id);
+
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "Excluir";
+        delBtn.onclick = () => removeItem(item.id);
+
+        actions.appendChild(editBtn);
+        actions.appendChild(delBtn);
+
+        li.appendChild(left);
+        li.appendChild(actions);
+        listEl.appendChild(li);
+      });
+    }
+
+    //CRIAR E ATUALIZAR
+    function upsertItem() {
+      const name = nameInput.value.trim();
+      if (!name) return alert("Digite um nome.");
+
+      const items = loadItems();
+
+      if (editingId === null) {
+        // CRIAR
+        items.push({ id: crypto.randomUUID(), name });
+      } else {
+        // ATUALIZAR
+        const idx = items.findIndex(i => i.id === editingId);
+        if (idx !== -1) items[idx].name = name;
+      }
+
+      saveItems(items);
+      resetForm();
+      render();
+    }
+
+    //ATUALIZAR 2
+    function startEdit(id) {
+      const items = loadItems();
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+
+      editingId = id;
+      nameInput.value = item.name;
+      saveBtn.textContent = "Atualizar";
+      cancelBtn.style.display = "inline-block";
+      nameInput.focus();
+    }
+
+    // REMOVER 
+    function removeItem(id) {
+      const items = loadItems();
+      const filtered = items.filter(i => i.id !== id);
+      saveItems(filtered);
+      // se estava editando este item, reseta
+      if (editingId === id) resetForm();
+      render();
+    }
+
+    function resetForm() {
+      editingId = null;
+      nameInput.value = "";
+      saveBtn.textContent = "Salvar";
+      cancelBtn.style.display = "none";
+    }
+
+    // Evita injetar HTML 
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[c]));
+    }
+
+    //EVENTO USUARIO
+    saveBtn.addEventListener("click", upsertItem);
+    cancelBtn.addEventListener("click", () => { resetForm(); });
+
+    // SALVAR ENTER
+    nameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") upsertItem();
+    });
+
+
+    render();
+  </script>
+</body>
+</html>
